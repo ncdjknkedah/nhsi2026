@@ -1,0 +1,722 @@
+<!DOCTYPE html>
+<html lang="ms">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard NHSI 2026 Kedah (Sync)</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.0.0"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.3.0/papaparse.min.js"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --primary: #6366f1;
+            --secondary: #a855f7;
+            --accent: #f43f5e;
+            --bg-dark: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.7);
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        body {
+            background: radial-gradient(circle at top left, #1e1b4b, #0f172a);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        @media (max-width: 600px) {
+            body {
+                padding: 1rem;
+            }
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* Header */
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 2rem;
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            padding: 1.5rem 2rem;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+        }
+
+        @media (max-width: 900px) {
+            header {
+                flex-direction: column;
+                gap: 1.5rem;
+                padding: 1.5rem;
+                text-align: center;
+            }
+
+            .controls {
+                flex-direction: column;
+                width: 100%;
+                gap: 0.8rem;
+            }
+
+            select {
+                width: 100%;
+                max-width: none;
+            }
+        }
+
+        .logo-section h1 {
+            font-size: 1.5rem;
+            background: linear-gradient(to right, #818cf8, #c084fc);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 600;
+        }
+
+        .controls {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+
+        select {
+            background: rgba(15, 23, 42, 0.9);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            padding: 0.6rem 1.2rem;
+            border-radius: 12px;
+            cursor: pointer;
+            outline: none;
+        }
+
+        select option {
+            background-color: #0f172a;
+            color: white;
+        }
+
+        /* Loading Overlay */
+        #loading {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 42, 0.9);
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            backdrop-filter: blur(10px);
+        }
+
+        .spinner {
+            width: 50px;
+            height: 50px;
+            border: 5px solid rgba(255, 255, 255, 0.1);
+            border-top-color: var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin-bottom: 1rem;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        /* KPI Cards */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        @media (max-width: 1024px) {
+            .kpi-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 600px) {
+            .kpi-grid {
+                grid-template-columns: 1fr;
+                gap: 1rem;
+            }
+        }
+
+        .kpi-card {
+            background: var(--card-bg);
+            backdrop-filter: blur(8px);
+            padding: 1.5rem;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            text-align: center;
+        }
+
+        .kpi-card h3 {
+            font-size: 0.85rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            margin-bottom: 0.5rem;
+        }
+
+        .kpi-card .value {
+            font-size: 1.8rem;
+            font-weight: 600;
+            color: white;
+            line-height: 1.2;
+        }
+
+        .kpi-card .sub-value {
+            font-size: 0.9rem;
+            color: var(--text-dim);
+            margin-top: 5px;
+            display: block;
+        }
+
+        /* Section Title */
+        .section-header {
+            grid-column: 1 / -1;
+            margin: 2rem 0 1rem 0;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        }
+
+        .section-header h2 {
+            font-size: 1.4rem;
+            color: var(--secondary);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }
+
+        /* Chart Grid */
+        .chart-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 1.5rem;
+        }
+
+        @media (max-width: 1024px) {
+            .chart-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .chart-container {
+            background: var(--card-bg);
+            backdrop-filter: blur(8px);
+            padding: 1.5rem;
+            border-radius: 20px;
+            border: 1px solid rgba(255, 255, 255, 0.05);
+            min-height: 400px;
+        }
+
+        .chart-container h2 {
+            font-size: 1.1rem;
+            margin-bottom: 1.5rem;
+            color: var(--text-dim);
+            border-left: 4px solid var(--primary);
+            padding-left: 1rem;
+        }
+
+        .full-width {
+            grid-column: 1 / -1;
+        }
+
+        canvas {
+            max-height: 300px;
+        }
+
+        footer {
+            margin-top: 4rem;
+            text-align: center;
+            padding: 2rem;
+            border-top: 1px solid rgba(255, 255, 255, 0.1);
+            color: var(--text-dim);
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+
+<body>
+
+    <div id="loading">
+        <div class="spinner"></div>
+        <p>Memuat turun data terkini dari Google Sheets...</p>
+    </div>
+
+    <div class="container" style="display: none;" id="dashboard-content">
+        <header>
+            <div class="logo-section">
+                <h1>NHSI 2026 • KEDAH DASHBOARD</h1>
+                <p style="font-size: 0.8rem; color: var(--text-dim);">Live Sync • JKN Kedah</p>
+                <p id="last-update"
+                    style="font-size: 0.75rem; color: var(--accent); margin-top: 5px; font-weight: 600;"></p>
+            </div>
+            <div class="controls">
+                <select id="districtFilter">
+                    <option value="ALL">Semua Daerah (Kedah)</option>
+                    <option value="BALING">Baling</option>
+                    <option value="BANDAR BAHARU">Bandar Baharu</option>
+                    <option value="KOTA SETAR">Kota Setar</option>
+                    <option value="KUALA MUDA">Kuala Muda</option>
+                    <option value="KUBANG PASU">Kubang Pasu</option>
+                    <option value="KULIM">Kulim</option>
+                    <option value="LANGKAWI">Langkawi</option>
+                    <option value="PADANG TERAP">Padang Terap</option>
+                    <option value="PENDANG">Pendang</option>
+                    <option value="SIK">Sik</option>
+                    <option value="YAN">Yan</option>
+                </select>
+                <select id="platformFilter">
+                    <option value="ALL">Semua Platform</option>
+                </select>
+                <select id="facilityFilter">
+                    <option value="ALL">Semua Fasiliti</option>
+                </select>
+            </div>
+        </header>
+
+        <div class="kpi-grid">
+            <div class="kpi-card">
+                <h3>Jumlah Saringan Keseluruhan</h3>
+                <div id="kpi-total" class="value">0</div>
+            </div>
+            <div class="kpi-card">
+                <h3>Negeri/Daerah</h3>
+                <div id="kpi-district-stat" class="value">-</div>
+            </div>
+            <div class="kpi-card">
+                <h3>Platform & Fasiliti</h3>
+                <div id="kpi-platform-stat" class="value">-</div>
+                <div id="kpi-facility-stat" class="sub-value">-</div>
+            </div>
+        </div>
+
+        <div class="chart-grid">
+            <div class="section-header">
+                <h2>Perbandingan Mengikut Daerah & Platform</h2>
+            </div>
+            <div class="chart-container full-width">
+                <h2>Bilangan Saringan Mengikut Daerah</h2><canvas id="chart-district"></canvas>
+            </div>
+            <div class="chart-container full-width">
+                <h2>Saringan Mengikut Platform</h2><canvas id="chart-platform"></canvas>
+            </div>
+
+            <div class="section-header">
+                <h2>Analisa Demografi</h2>
+            </div>
+            <div class="chart-container">
+                <h2>Kumpulan Umur (Age Group)</h2><canvas id="chart-age"></canvas>
+            </div>
+            <div class="chart-container">
+                <h2>Jantina (Gender)</h2><canvas id="chart-gender"></canvas>
+            </div>
+            <div class="chart-container full-width">
+                <h2>Etnik (Ethnicity)</h2><canvas id="chart-ethnicity"></canvas>
+            </div>
+
+            <div class="section-header">
+                <h2>Analisa Faktor Risiko NCD</h2>
+            </div>
+            <div class="chart-container">
+                <h2>Kesihatan Mental (Depression)</h2><canvas id="chart-depression"></canvas>
+            </div>
+            <div class="chart-container">
+                <h2>Kesihatan Mental (Anxiety)</h2><canvas id="chart-anxiety"></canvas>
+            </div>
+            <div class="chart-container">
+                <h2>Status Merokok (Smoker)</h2><canvas id="chart-smoker"></canvas>
+            </div>
+            <div class="chart-container">
+                <h2>Audit Alkohol (Alcohol)</h2><canvas id="chart-alcohol"></canvas>
+            </div>
+            <div class="chart-container">
+                <h2>Klasifikasi BMI (BMI Classification)</h2><canvas id="chart-bmi"></canvas>
+            </div>
+            <div class="chart-container">
+                <h2>Gula Dalam Darah (Glucose)</h2><canvas id="chart-glucose"></canvas>
+            </div>
+            <div class="chart-container">
+                <h2>Tekanan Darah (Blood Pressure)</h2><canvas id="chart-bp"></canvas>
+            </div>
+            <div class="chart-container">
+                <h2>Kolesterol (Cholesterol)</h2><canvas id="chart-cholesterol"></canvas>
+            </div>
+            <div class="chart-container full-width">
+                <h2>Klasifikasi Risiko NCD</h2><canvas id="chart-ncd"></canvas>
+            </div>
+        </div>
+        <footer>HAKCIPTA UNIT KAWALAN PENYAKIT TIDAK BERJANGKIT JKN KEDAH 2026</footer>
+    </div>
+
+    <script>
+        Chart.register(ChartDataLabels);
+        let rawData = [];
+        let charts = {};
+
+        // Ganti ID Sheet di sini jika anda mahu menukar database
+        const SHEET_ID = '1VIT_i4-iW6l9XAxt0tR9KiDRe-gib-G8aaeTy9wsSbc';
+        // Menggunakan /export?format=csv yang lebih stabil untuk CORS dan data awam
+        // Ditambah &cb=${Date.now()} untuk mengelakkan caching data lama
+        const CSV_URL = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/export?format=csv&cb=${Date.now()}`;
+
+        async function initDashboard() {
+            try {
+                const response = await fetch(CSV_URL);
+                const csvText = await response.text();
+
+                Papa.parse(csvText, {
+                    header: true,
+                    skipEmptyLines: true,
+                    complete: function (results) {
+                        rawData = results.data.map(row => {
+                            const eth = (row.ETHNICITY || '').toUpperCase();
+                            row.ETHNICITY_SORTED = ['MALAY', 'CHINESE', 'INDIAN'].includes(eth) ? eth : 'LAIN-LAIN';
+                            return row;
+                        });
+
+                        // Extract latest SOURCEDATE
+                        if (rawData.length > 0) {
+                            const months = ["Januari", "Februari", "Mac", "April", "Mei", "Jun", "Julai", "Ogos", "September", "Oktober", "November", "Disember"];
+
+                            // Cari row paling bawah yang mempunyai data tarikh yang sah
+                            let formattedDate = "TARIKH KEMASKINI DATA: Tiada Data Sah";
+
+                            for (let i = rawData.length - 1; i >= 0; i--) {
+                                const row = rawData[i];
+                                const dateStr = (row.SOURCEDATE || row.LAST_SCREENING_DATE || '').toString().trim();
+
+                                if (dateStr && dateStr !== "########" && dateStr !== "") {
+                                    // Cuba kesan jika format sudah ada Nama Bulan (Malay)
+                                    const matchMonth = months.find(m => dateStr.toLowerCase().includes(m.toLowerCase()));
+                                    if (matchMonth) {
+                                        formattedDate = `TARIKH KEMASKINI DATA: ${dateStr}`;
+                                        break;
+                                    }
+
+                                    // Cuba DD/MM/YYYY
+                                    let parts = dateStr.split('/');
+                                    if (parts.length === 3) {
+                                        const day = parseInt(parts[0]);
+                                        const monthIndex = parseInt(parts[1]) - 1;
+                                        const year = parts[2];
+                                        if (!isNaN(day) && monthIndex >= 0 && monthIndex < 12) {
+                                            formattedDate = `TARIKH KEMASKINI DATA: ${day} ${months[monthIndex]} ${year}`;
+                                            break;
+                                        }
+                                    }
+
+                                    // Cuba YYYY-MM-DD
+                                    parts = dateStr.split('-');
+                                    if (parts.length === 3) {
+                                        const year = parts[0];
+                                        const monthIndex = parseInt(parts[1]) - 1;
+                                        const day = parseInt(parts[2]);
+                                        if (!isNaN(day) && monthIndex >= 0 && monthIndex < 12 && year.length === 4) {
+                                            formattedDate = `TARIKH KEMASKINI DATA: ${day} ${months[monthIndex]} ${year}`;
+                                            break;
+                                        }
+                                    }
+                                }
+                            }
+
+                            document.getElementById('last-update').innerText = formattedDate;
+                        }
+
+                        document.getElementById('loading').style.display = 'none';
+                        document.getElementById('dashboard-content').style.display = 'block';
+
+                        updatePlatformOptions();
+                        updateFacilityOptions();
+                        updateDashboard();
+                    }
+                });
+            } catch (error) {
+                console.error('Gagal mengambil data:', error);
+                let errorMsg = "Sila pastikan Spreadsheet anda telah dikongsi kepada 'Anyone with the link can view'.";
+
+                // Tambahan fallback jika gagal kali pertama
+                document.querySelector('#loading p').innerHTML = `Ralat: ${errorMsg}<br><br><span style="font-size:0.8rem; color:var(--text-dim);">ID: ${SHEET_ID}</span>`;
+            }
+        }
+
+        document.getElementById('districtFilter').addEventListener('change', () => {
+            updatePlatformOptions();
+            updateFacilityOptions();
+            updateDashboard();
+        });
+
+        document.getElementById('platformFilter').addEventListener('change', () => {
+            const platform = document.getElementById('platformFilter').value;
+            const facilityFilter = document.getElementById('facilityFilter');
+            const kpiFacilityTitle = document.querySelector('.kpi-card:nth-child(3) h3');
+
+            if (platform === 'KOSPEN COMMUNITY') {
+                kpiFacilityTitle.textContent = 'Platform & Lokaliti';
+            } else {
+                kpiFacilityTitle.textContent = 'Platform & Fasiliti';
+            }
+
+            updateFacilityOptions();
+            updateDashboard();
+        });
+
+        document.getElementById('facilityFilter').addEventListener('change', updateDashboard);
+
+        function updatePlatformOptions() {
+            const distFilter = document.getElementById('districtFilter').value;
+            const platformSelect = document.getElementById('platformFilter');
+            const currentValue = platformSelect.value;
+
+            // Filter based on district
+            let filteredData = rawData;
+            if (distFilter !== 'ALL') {
+                filteredData = rawData.filter(d => (d.FACILITY_DISTRICT || '').toUpperCase() === distFilter.toUpperCase());
+            }
+
+            // Get unique platforms
+            const platforms = [...new Set(filteredData.map(d => (d.PLATFORM || '').trim().toUpperCase()))].filter(p => p !== '').sort();
+
+            // Populate select
+            platformSelect.innerHTML = '<option value="ALL">Semua Platform</option>';
+            platforms.forEach(plat => {
+                const opt = document.createElement('option');
+                opt.value = plat;
+                opt.textContent = plat;
+                platformSelect.appendChild(opt);
+            });
+
+            // Try to keep selection if it still exists
+            if (platforms.includes(currentValue)) {
+                platformSelect.value = currentValue;
+            } else {
+                platformSelect.value = 'ALL';
+            }
+        }
+
+        function updateFacilityOptions() {
+            const distFilter = document.getElementById('districtFilter').value;
+            const platFilter = document.getElementById('platformFilter').value;
+            const facilitySelect = document.getElementById('facilityFilter');
+            const currentValue = facilitySelect.value;
+
+            const isKospen = platFilter === 'KOSPEN COMMUNITY';
+            const dataKey = isKospen ? 'LOCALITY' : 'FACILITY_NAME';
+            const defaultText = isKospen ? 'Semua Lokaliti' : 'Semua Fasiliti';
+
+            // Filter facilities based on district AND platform
+            let filteredData = rawData;
+            if (distFilter !== 'ALL') {
+                filteredData = filteredData.filter(d => (d.FACILITY_DISTRICT || '').toUpperCase() === distFilter.toUpperCase());
+            }
+            if (platFilter !== 'ALL') {
+                filteredData = filteredData.filter(d => (d.PLATFORM || '').toUpperCase() === platFilter.toUpperCase());
+            }
+
+            // Get unique items
+            const items = [...new Set(filteredData.map(d => (d[dataKey] || '').trim().toUpperCase()))].filter(f => f !== '').sort();
+
+            // Populate select
+            facilitySelect.innerHTML = `<option value="ALL">${defaultText}</option>`;
+            items.forEach(item => {
+                const opt = document.createElement('option');
+                opt.value = item;
+                opt.textContent = item;
+                facilitySelect.appendChild(opt);
+            });
+
+            // Try to keep selection if it still exists
+            if (items.includes(currentValue)) {
+                facilitySelect.value = currentValue;
+            } else {
+                facilitySelect.value = 'ALL';
+            }
+        }
+
+        function updateDashboard() {
+            const distFilter = document.getElementById('districtFilter').value;
+            const facFilter = document.getElementById('facilityFilter').value;
+            const platFilter = document.getElementById('platformFilter').value;
+
+            let data = rawData;
+            const isKospen = platFilter === 'KOSPEN COMMUNITY';
+            const dataKey = isKospen ? 'LOCALITY' : 'FACILITY_NAME';
+            const defaultSubText = isKospen ? "Pelbagai Lokaliti" : "Pelbagai Fasiliti";
+
+            if (distFilter !== 'ALL') data = data.filter(d => (d.FACILITY_DISTRICT || '').toUpperCase() === distFilter.toUpperCase());
+            if (platFilter !== 'ALL') data = data.filter(d => (d.PLATFORM || '').toUpperCase() === platFilter.toUpperCase());
+            if (facFilter !== 'ALL') data = data.filter(d => (d[dataKey] || '').trim().toUpperCase() === facFilter.toUpperCase());
+
+            document.getElementById('kpi-total').innerText = data.length;
+            document.getElementById('kpi-district-stat').innerText = distFilter === 'ALL' ? "Seluruh Kedah" : distFilter;
+
+            document.getElementById('kpi-platform-stat').innerText = platFilter === 'ALL' ? "PELBAGAI PLATFORM" : platFilter;
+            document.getElementById('kpi-facility-stat').innerText = facFilter === 'ALL' ? defaultSubText : facFilter;
+
+            const total = data.length;
+
+            renderBarChart('chart-district', sortAlphabetical(countFrequency(data, 'FACILITY_DISTRICT')), 'Saringan', '#818cf8', false, total);
+            renderBarChart('chart-platform', countFrequency(data, 'PLATFORM'), 'Saringan', '#c084fc', false, total);
+            renderBarChart('chart-age', sortAgeGroups(countFrequency(data, 'AGE_GROUP')), 'Bilangan', '#6366f1', true, total);
+            renderPieChart('chart-gender', countFrequency(data, 'GENDER'), ['#3b82f6', '#fb7185'], true, total);
+            renderBarChart('chart-ethnicity', sortEthnicity(countFrequency(data, 'ETHNICITY_SORTED')), 'Bilangan', '#a855f7', true, total);
+            renderBarChart('chart-depression', countFrequency(data, 'MENTAL_HEALTH_DEPRESSION'), 'Tahap', '#f43f5e', true, total);
+            renderBarChart('chart-anxiety', countFrequency(data, 'MENTAL_HEALTH_ANXIETY'), 'Tahap', '#fb923c', true, total);
+            renderPieChart('chart-smoker', countFrequency(data, 'SMOKER'), ['#10b981', '#f59e0b', '#6b7280'], true, total);
+            renderBarChart('chart-alcohol', countFrequency(data, 'ALCOHOL_AUDIT'), 'Bilangan', '#f59e0b', true, total);
+            renderBarChart('chart-bmi', sortBMI(countFrequency(data, 'BMI_CLASSIFICATION')), 'Kategori', '#34d399', true, total);
+            renderBarChart('chart-glucose', countFrequency(data, 'BLOOD_GLUCOSE_CLASSIFICATION'), 'Kategori', '#f59e0b', true, total);
+            renderBarChart('chart-bp', countFrequency(data, 'BLOOD_PRESSURE_CLASSIFICATION'), 'Kategori', '#8b5cf6', true, total);
+            renderBarChart('chart-cholesterol', countFrequency(data, 'BLOOD_CHOLESTEROL_CLASSIFICATION'), 'Kategori', '#06b6d4', true, total);
+            renderBarChart('chart-ncd', countFrequency(data, 'NCD_RISK_CLASSIFICATION'), 'Tahap Risiko', '#ec4899', true, total);
+        }
+
+        function sortAlphabetical(obj) {
+            const sorted = {};
+            Object.keys(obj).sort().forEach(key => { sorted[key] = obj[key]; });
+            return sorted;
+        }
+
+        function sortAgeGroups(obj) {
+            const sorted = {};
+            Object.keys(obj).sort((a, b) => {
+                const numA = parseInt(a.replace(/^\D+/g, '')) || 0;
+                const numB = parseInt(b.replace(/^\D+/g, '')) || 0;
+                return numA - numB;
+            }).forEach(key => { sorted[key] = obj[key]; });
+            return sorted;
+        }
+
+        function sortEthnicity(obj) {
+            const order = ['MALAY', 'CHINESE', 'INDIAN', 'LAIN-LAIN', 'TIADA DATA'];
+            const sorted = {};
+            order.forEach(key => { if (obj[key] !== undefined) sorted[key] = obj[key]; });
+            Object.keys(obj).forEach(key => { if (!order.includes(key)) sorted[key] = obj[key]; });
+            return sorted;
+        }
+
+        function sortBMI(obj) {
+            const order = ['UNDERWEIGHT', 'NORMAL WEIGHT', 'OVERWEIGHT', 'OBESE-I', 'OBESE-II', 'OBESE-III'];
+            const sorted = {};
+            order.forEach(key => { if (obj[key] !== undefined) sorted[key] = obj[key]; });
+            // Masukkan yang lain jika ada
+            Object.keys(obj).forEach(key => { if (!order.includes(key)) sorted[key] = obj[key]; });
+            return sorted;
+        }
+
+        function countFrequency(data, key) {
+            return data.reduce((acc, curr) => {
+                let val = curr[key] || 'Tiada Data';
+                val = val.toString().toUpperCase();
+                acc[val] = (acc[val] || 0) + 1;
+                return acc;
+            }, {});
+        }
+
+        function renderBarChart(id, freqData, label, color, showPercent = false, total = 0) {
+            if (charts[id]) charts[id].destroy();
+            const ctx = document.getElementById(id).getContext('2d');
+            charts[id] = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: Object.keys(freqData),
+                    datasets: [{ label: label, data: Object.values(freqData), backgroundColor: color, borderRadius: 8 }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    layout: { padding: { top: 35 } },
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: (item) => {
+                                    const val = item.raw;
+                                    const percentage = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
+                                    return `${item.label}: ${val} (${percentage}%)`;
+                                }
+                            }
+                        },
+                        datalabels: {
+                            color: '#fff',
+                            anchor: 'end',
+                            align: 'top',
+                            offset: 4,
+                            font: { weight: 'bold', size: 10 },
+                            formatter: (value, ctx) => {
+                                if (!showPercent) return value;
+                                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                return `${value}, ${percentage}%`;
+                            }
+                        }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.05)' }, ticks: { color: '#94a3b8' } },
+                        x: { grid: { display: false }, ticks: { color: '#94a3b8' } }
+                    }
+                }
+            });
+        }
+
+        function renderPieChart(id, freqData, colors, showPercent = false, total = 0) {
+            if (charts[id]) charts[id].destroy();
+            const ctx = document.getElementById(id).getContext('2d');
+            charts[id] = new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: Object.keys(freqData),
+                    datasets: [{ data: Object.values(freqData), backgroundColor: colors, borderWidth: 0 }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'bottom', labels: { color: '#94a3b8', font: { size: 11 } } },
+                        tooltip: {
+                            callbacks: {
+                                label: (item) => {
+                                    const val = item.raw;
+                                    const percentage = total > 0 ? ((val / total) * 100).toFixed(1) : 0;
+                                    return `${item.label}: ${val} (${percentage}%)`;
+                                }
+                            }
+                        },
+                        datalabels: {
+                            color: '#fff',
+                            display: true,
+                            font: { weight: 'bold', size: 10 },
+                            formatter: (value, ctx) => {
+                                const percentage = total > 0 ? ((value / total) * 100).toFixed(1) : 0;
+                                return `${value}, ${percentage}%`;
+                            }
+                        }
+                    },
+                    cutout: '70%'
+                }
+            });
+        }
+
+        // Jalankan Dashboard
+        initDashboard();
+    </script>
+</body>
+
+</html>
