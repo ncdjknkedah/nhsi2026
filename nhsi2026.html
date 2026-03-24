@@ -318,9 +318,7 @@
             <div class="chart-container full-width">
                 <h2>Bilangan Saringan Mengikut Daerah</h2><canvas id="chart-district"></canvas>
             </div>
-            <div class="chart-container full-width">
-                <h2>Saringan Mengikut Platform</h2><canvas id="chart-platform"></canvas>
-            </div>
+
 
             <div class="section-header">
                 <h2>Analisa Demografi</h2>
@@ -584,7 +582,6 @@
             const total = data.length;
 
             renderBarChart('chart-district', sortAlphabetical(countFrequency(data, 'FACILITY_DISTRICT')), 'Saringan', '#818cf8', false, total);
-            renderBarChart('chart-platform', countFrequency(data, 'PLATFORM'), 'Saringan', '#c084fc', false, total);
             renderBarChart('chart-age', sortAgeGroups(countFrequency(data, 'AGE_GROUP')), 'Bilangan', '#6366f1', true, total);
             renderPieChart('chart-gender', countFrequency(data, 'GENDER'), ['#3b82f6', '#fb7185'], true, total);
             renderBarChart('chart-ethnicity', sortEthnicity(countFrequency(data, 'ETHNICITY_SORTED')), 'Bilangan', '#a855f7', true, total);
