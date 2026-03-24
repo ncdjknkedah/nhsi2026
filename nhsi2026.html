@@ -388,12 +388,20 @@
                 Papa.parse(csvText, {
                     header: true,
                     skipEmptyLines: true,
-                    complete: function (results) {
-                        rawData = results.data.map(row => {
+                                        complete: function (results) {
+                        // 1. KUASA TAPISAN (FORCE): AMBIL KOSPEN COMMUNNITY SAHAJA
+                        const dataKospenSahaja = results.data.filter(row => {
+                            return (row.PLATFORM || '').toUpperCase().trim() === 'KOSPEN COMMUNITY';
+                        });
+
+                        // 2. MASUKKAN DATA YG DITAPIS KE RAW DATA
+                        rawData = dataKospenSahaja.map(row => {
                             const eth = (row.ETHNICITY || '').toUpperCase();
                             row.ETHNICITY_SORTED = ['MALAY', 'CHINESE', 'INDIAN'].includes(eth) ? eth : 'LAIN-LAIN';
                             return row;
                         });
+
+                        /* ... (Biar kod extract SOURCEDATE di bawahnya berjalan seperti biasa) ... */
 
                         // Extract latest SOURCEDATE
                         if (rawData.length > 0) {
