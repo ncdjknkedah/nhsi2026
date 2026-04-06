@@ -297,7 +297,7 @@
 
         <div class="kpi-grid">
             <div class="kpi-card">
-                <h3>Jumlah Saringan KOSPEN</h3>
+                <h3>Jumlah Saringan Keseluruhan</h3>
                 <div id="kpi-total" class="value">0</div>
             </div>
             <div class="kpi-card">
@@ -305,8 +305,8 @@
                 <div id="kpi-district-stat" class="value">-</div>
             </div>
             <div class="kpi-card">
-                <h3>Platform & Lokaliti</h3>
-                <div id="kpi-platform-stat" class="value text-warning">KOSPEN COMMUNITY</div>
+                <h3>Platform & Fasiliti</h3>
+                <div id="kpi-platform-stat" class="value">-</div>
                 <div id="kpi-facility-stat" class="sub-value">-</div>
             </div>
         </div>
@@ -318,7 +318,9 @@
             <div class="chart-container full-width">
                 <h2>Bilangan Saringan Mengikut Daerah</h2><canvas id="chart-district"></canvas>
             </div>
-
+            <div class="chart-container full-width">
+                <h2>Saringan Mengikut Platform</h2><canvas id="chart-platform"></canvas>
+            </div>
 
             <div class="section-header">
                 <h2>Analisa Demografi</h2>
@@ -386,20 +388,12 @@
                 Papa.parse(csvText, {
                     header: true,
                     skipEmptyLines: true,
-                                        complete: function (results) {
-                        // 1. KUASA TAPISAN (FORCE): AMBIL KOSPEN COMMUNNITY SAHAJA
-                        const dataKospenSahaja = results.data.filter(row => {
-                            return (row.PLATFORM || '').toUpperCase().trim() === 'KOSPEN COMMUNITY';
-                        });
-
-                        // 2. MASUKKAN DATA YG DITAPIS KE RAW DATA
-                        rawData = dataKospenSahaja.map(row => {
+                    complete: function (results) {
+                        rawData = results.data.map(row => {
                             const eth = (row.ETHNICITY || '').toUpperCase();
                             row.ETHNICITY_SORTED = ['MALAY', 'CHINESE', 'INDIAN'].includes(eth) ? eth : 'LAIN-LAIN';
                             return row;
                         });
-
-                        /* ... (Biar kod extract SOURCEDATE di bawahnya berjalan seperti biasa) ... */
 
                         // Extract latest SOURCEDATE
                         if (rawData.length > 0) {
@@ -582,6 +576,7 @@
             const total = data.length;
 
             renderBarChart('chart-district', sortAlphabetical(countFrequency(data, 'FACILITY_DISTRICT')), 'Saringan', '#818cf8', false, total);
+            renderBarChart('chart-platform', countFrequency(data, 'PLATFORM'), 'Saringan', '#c084fc', false, total);
             renderBarChart('chart-age', sortAgeGroups(countFrequency(data, 'AGE_GROUP')), 'Bilangan', '#6366f1', true, total);
             renderPieChart('chart-gender', countFrequency(data, 'GENDER'), ['#3b82f6', '#fb7185'], true, total);
             renderBarChart('chart-ethnicity', sortEthnicity(countFrequency(data, 'ETHNICITY_SORTED')), 'Bilangan', '#a855f7', true, total);
